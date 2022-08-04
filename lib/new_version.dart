@@ -194,9 +194,6 @@ class NewVersion {
           .replaceAll('\'', '"');
       final parsed = json.decode(param);
       final data = parsed['data'];
-      print("storeVersion: ${data[1][2][140][0][0][0]}");
-      print("releaseNotes0: ${data[1][2][144][1]}");
-      print("releaseNotes1: ${data[1][2][144][1][1]}");
 
       storeVersion = data[1][2][140][0][0][0];
       // releaseNotes = data[1][2][144][1][1];
