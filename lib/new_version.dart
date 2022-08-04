@@ -25,6 +25,7 @@ class VersionStatus {
   final String appStoreLink;
 
   /// The release notes for the store version of the app.
+  /// Not used for now because release note in play store is null
   final String? releaseNotes;
 
   /// Returns `true` if the store version of the application is greater than the local version.
@@ -109,6 +110,7 @@ class NewVersion {
     } else {
       debugPrint(
           'The target platform "${Platform.operatingSystem}" is not yet supported by this package.');
+      return null;
     }
   }
 
@@ -121,7 +123,7 @@ class NewVersion {
   /// JSON document.
   Future<VersionStatus?> _getiOSStoreVersion(PackageInfo packageInfo) async {
     final id = iOSId ?? packageInfo.packageName;
-    final parameters = {"bundleId": "$id"};
+    final parameters = {"bundleId": id};
     if (iOSAppStoreCountry != null) {
       parameters.addAll({"country": iOSAppStoreCountry!});
     }
@@ -150,8 +152,8 @@ class NewVersion {
   Future<VersionStatus?> _getAndroidStoreVersion(
       PackageInfo packageInfo) async {
     final id = androidId ?? packageInfo.packageName;
-    final uri =
-    Uri.https("play.google.com", "/store/apps/details", {"id": "$id", "hl": "en"});
+    final uri = Uri.https(
+        "play.google.com", "/store/apps/details", {"id": id, "hl": "en"});
     final response = await http.get(uri);
     if (response.statusCode != 200) {
       debugPrint('Can\'t find an app in the Play Store with the id: $id');
@@ -165,13 +167,13 @@ class NewVersion {
     final additionalInfoElements = document.getElementsByClassName('hAyfc');
     if (additionalInfoElements.isNotEmpty) {
       final versionElement = additionalInfoElements.firstWhere(
-            (elm) => elm.querySelector('.BgcNfc')!.text == 'Current Version',
+        (elm) => elm.querySelector('.BgcNfc')!.text == 'Current Version',
       );
       storeVersion = versionElement.querySelector('.htlgb')!.text;
 
       final sectionElements = document.getElementsByClassName('W4P4ne');
       final releaseNotesElement = sectionElements.firstWhereOrNull(
-            (elm) => elm.querySelector('.wSaTQd')!.text == 'What\'s New',
+        (elm) => elm.querySelector('.wSaTQd')!.text == 'What\'s New',
       );
       releaseNotes = releaseNotesElement
           ?.querySelector('.PHBdkd')
@@ -180,20 +182,24 @@ class NewVersion {
     } else {
       final scriptElements = document.getElementsByTagName('script');
       final infoScriptElement = scriptElements.firstWhere(
-            (elm) => elm.text.contains('key: \'ds:4\''),
+        (elm) => elm.text.contains('key: \'ds:4\''),
       );
 
-      final param = infoScriptElement.text.substring(20, infoScriptElement.text.length - 2)
+      final param = infoScriptElement.text
+          .substring(20, infoScriptElement.text.length - 2)
           .replaceAll('key:', '"key":')
           .replaceAll('hash:', '"hash":')
           .replaceAll('data:', '"data":')
           .replaceAll('sideChannel:', '"sideChannel":')
           .replaceAll('\'', '"');
       final parsed = json.decode(param);
-      final data =  parsed['data'];
+      final data = parsed['data'];
+      print("storeVersion: ${data[1][2][140][0][0][0]}");
+      print("releaseNotes0: ${data[1][2][144][1]}");
+      print("releaseNotes1: ${data[1][2][144][1][1]}");
 
       storeVersion = data[1][2][140][0][0][0];
-      releaseNotes = data[1][2][144][1][1];
+      // releaseNotes = data[1][2][144][1][1];
     }
 
     return VersionStatus._(
@@ -203,6 +209,7 @@ class NewVersion {
       releaseNotes: releaseNotes,
     );
   }
+
   /// Shows the user a platform-specific alert about the app update. The user
   /// can dismiss the alert or proceed to the app store.
   ///
@@ -226,12 +233,12 @@ class NewVersion {
     );
 
     final updateButtonTextWidget = Text(updateButtonText);
-    final updateAction = () {
+    void updateAction() {
       launchAppStore(versionStatus.appStoreLink);
       if (allowDismissal) {
         Navigator.of(context, rootNavigator: true).pop();
       }
-    };
+    }
 
     List<Widget> actions = [
       Platform.isAndroid
@@ -286,8 +293,10 @@ class NewVersion {
   /// Launches the Apple App Store or Google Play Store page for the app.
   Future<void> launchAppStore(String appStoreLink) async {
     debugPrint(appStoreLink);
-    if (await canLaunch(appStoreLink)) {
-      await launch(appStoreLink);
+    final uri = Uri.parse(
+        "https://play.google.com/store/apps/details?id=com.app.hijra.taaruf");
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
     } else {
       throw 'Could not launch appStoreLink';
     }
