@@ -52,6 +52,16 @@ class VersionStatus {
     return false;
   }
 
+  bool get bigUpdate {
+    final local = localVersion.split('.').map(int.parse).toList();
+    final store = storeVersion.split('.').map(int.parse).toList();
+    if (store.first > local.first) {
+      return true;
+    }
+
+    return false;
+  }
+
   VersionStatus._({
     required this.localVersion,
     required this.storeVersion,
