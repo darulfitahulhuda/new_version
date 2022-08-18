@@ -11,6 +11,7 @@ import 'package:html/parser.dart' show parse;
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:version/version.dart';
 
 /// Information about the app's current version, and the most recent version
 /// available in the Apple App Store or Google Play Store.
@@ -190,23 +191,46 @@ class NewVersion {
           ?.querySelector('.DWPxHb')
           ?.text;
     } else {
-      final scriptElements = document.getElementsByTagName('script');
-      final infoScriptElement = scriptElements.firstWhere(
-        (elm) => elm.text.contains('key: \'ds:4\''),
-      );
+      const patternName = ",\"name\":\"";
+      const patternVersion = ",[[[\"";
+      const patternCallback = "AF_initDataCallback";
+      const patternEndOfString = "\"";
 
-      final param = infoScriptElement.text
-          .substring(20, infoScriptElement.text.length - 2)
-          .replaceAll('key:', '"key":')
-          .replaceAll('hash:', '"hash":')
-          .replaceAll('data:', '"data":')
-          .replaceAll('sideChannel:', '"sideChannel":')
-          .replaceAll('\'', '"');
-      final parsed = json.decode(param);
-      final data = parsed['data'];
+      final scripts = document.getElementsByTagName('script');
 
-      storeVersion = data[1][2][140][0][0][0];
-      // releaseNotes = data[1][2][144][1][1];
+      final infoElements =
+          scripts.where((element) => element.text.contains(patternName));
+      final additionalInfoElements =
+          scripts.where((element) => element.text.contains(patternCallback));
+      final additionalInfoElementsFiltered = additionalInfoElements
+          .where((element) => element.text.contains(patternVersion));
+
+      final nameElement = infoElements.first.text;
+      final storeNameStartIndex =
+          nameElement.indexOf(patternName) + patternName.length;
+      final storeNameEndIndex = storeNameStartIndex +
+          nameElement
+              .substring(storeNameStartIndex)
+              .indexOf(patternEndOfString);
+      final storeName =
+          nameElement.substring(storeNameStartIndex, storeNameEndIndex);
+
+      final versionElement = additionalInfoElementsFiltered
+          .where((element) => element.text.contains("\"$storeName\""))
+          .first
+          .text;
+      final storeVersionStartIndex =
+          versionElement.lastIndexOf(patternVersion) + patternVersion.length;
+      final storeVersionEndIndex = storeVersionStartIndex +
+          versionElement
+              .substring(storeVersionStartIndex)
+              .indexOf(patternEndOfString);
+      final storeVersions = versionElement.substring(
+          storeVersionStartIndex, storeVersionEndIndex);
+
+      // storeVersion might be: 'Varies with device', which is not a valid version.
+      storeVersion = Version.parse(storeVersions).toString();
+      print("store version: $storeVersion");
     }
 
     return VersionStatus._(
