@@ -162,83 +162,88 @@ class NewVersion {
   /// Android info is fetched by parsing the html of the app store page.
   Future<VersionStatus?> _getAndroidStoreVersion(
       PackageInfo packageInfo) async {
-    final id = androidId ?? packageInfo.packageName;
-    final uri = Uri.https(
-        "play.google.com", "/store/apps/details", {"id": id, "hl": "en"});
-    final response = await http.get(uri);
-    if (response.statusCode != 200) {
-      debugPrint('Can\'t find an app in the Play Store with the id: $id');
-      return null;
-    }
-    final document = parse(response.body);
+    try {
+      final id = androidId ?? packageInfo.packageName;
+      final uri = Uri.https(
+          "play.google.com", "/store/apps/details", {"id": id, "hl": "en"});
+      final response = await http.get(uri);
+      if (response.statusCode != 200) {
+        debugPrint('Can\'t find an app in the Play Store with the id: $id');
+        return null;
+      }
+      final document = parse(response.body);
 
-    String storeVersion = '0.0.0';
-    String? releaseNotes;
+      String storeVersion = '0.0.0';
+      String? releaseNotes;
 
-    final additionalInfoElements = document.getElementsByClassName('hAyfc');
-    if (additionalInfoElements.isNotEmpty) {
-      final versionElement = additionalInfoElements.firstWhere(
-        (elm) => elm.querySelector('.BgcNfc')!.text == 'Current Version',
+      final additionalInfoElements = document.getElementsByClassName('hAyfc');
+      if (additionalInfoElements.isNotEmpty) {
+        final versionElement = additionalInfoElements.firstWhere(
+          (elm) => elm.querySelector('.BgcNfc')!.text == 'Current Version',
+        );
+        storeVersion = versionElement.querySelector('.htlgb')!.text;
+
+        final sectionElements = document.getElementsByClassName('W4P4ne');
+        final releaseNotesElement = sectionElements.firstWhereOrNull(
+          (elm) => elm.querySelector('.wSaTQd')!.text == 'What\'s New',
+        );
+        releaseNotes = releaseNotesElement
+            ?.querySelector('.PHBdkd')
+            ?.querySelector('.DWPxHb')
+            ?.text;
+      } else {
+        const patternName = ",\"name\":\"";
+        const patternVersion = ",[[[\"";
+        const patternCallback = "AF_initDataCallback";
+        const patternEndOfString = "\"";
+
+        final scripts = document.getElementsByTagName('script');
+
+        final infoElements =
+            scripts.where((element) => element.text.contains(patternName));
+        final additionalInfoElements =
+            scripts.where((element) => element.text.contains(patternCallback));
+        final additionalInfoElementsFiltered = additionalInfoElements
+            .where((element) => element.text.contains(patternVersion));
+
+        final nameElement = infoElements.first.text;
+        final storeNameStartIndex =
+            nameElement.indexOf(patternName) + patternName.length;
+        final storeNameEndIndex = storeNameStartIndex +
+            nameElement
+                .substring(storeNameStartIndex)
+                .indexOf(patternEndOfString);
+        final storeName =
+            nameElement.substring(storeNameStartIndex, storeNameEndIndex);
+
+        final versionElement = additionalInfoElementsFiltered
+            .where((element) => element.text.contains("\"$storeName\""))
+            .first
+            .text;
+        final storeVersionStartIndex =
+            versionElement.lastIndexOf(patternVersion) + patternVersion.length;
+        final storeVersionEndIndex = storeVersionStartIndex +
+            versionElement
+                .substring(storeVersionStartIndex)
+                .indexOf(patternEndOfString);
+        final storeVersions = versionElement.substring(
+            storeVersionStartIndex, storeVersionEndIndex);
+
+        // storeVersion might be: 'Varies with device', which is not a valid version.
+        storeVersion = Version.parse(storeVersions).toString();
+        print("store version: $storeVersion");
+      }
+
+      return VersionStatus._(
+        localVersion: _getCleanVersion(packageInfo.version),
+        storeVersion: _getCleanVersion(forceAppVersion ?? storeVersion),
+        appStoreLink: uri.toString(),
+        releaseNotes: releaseNotes,
       );
-      storeVersion = versionElement.querySelector('.htlgb')!.text;
-
-      final sectionElements = document.getElementsByClassName('W4P4ne');
-      final releaseNotesElement = sectionElements.firstWhereOrNull(
-        (elm) => elm.querySelector('.wSaTQd')!.text == 'What\'s New',
-      );
-      releaseNotes = releaseNotesElement
-          ?.querySelector('.PHBdkd')
-          ?.querySelector('.DWPxHb')
-          ?.text;
-    } else {
-      const patternName = ",\"name\":\"";
-      const patternVersion = ",[[[\"";
-      const patternCallback = "AF_initDataCallback";
-      const patternEndOfString = "\"";
-
-      final scripts = document.getElementsByTagName('script');
-
-      final infoElements =
-          scripts.where((element) => element.text.contains(patternName));
-      final additionalInfoElements =
-          scripts.where((element) => element.text.contains(patternCallback));
-      final additionalInfoElementsFiltered = additionalInfoElements
-          .where((element) => element.text.contains(patternVersion));
-
-      final nameElement = infoElements.first.text;
-      final storeNameStartIndex =
-          nameElement.indexOf(patternName) + patternName.length;
-      final storeNameEndIndex = storeNameStartIndex +
-          nameElement
-              .substring(storeNameStartIndex)
-              .indexOf(patternEndOfString);
-      final storeName =
-          nameElement.substring(storeNameStartIndex, storeNameEndIndex);
-
-      final versionElement = additionalInfoElementsFiltered
-          .where((element) => element.text.contains("\"$storeName\""))
-          .first
-          .text;
-      final storeVersionStartIndex =
-          versionElement.lastIndexOf(patternVersion) + patternVersion.length;
-      final storeVersionEndIndex = storeVersionStartIndex +
-          versionElement
-              .substring(storeVersionStartIndex)
-              .indexOf(patternEndOfString);
-      final storeVersions = versionElement.substring(
-          storeVersionStartIndex, storeVersionEndIndex);
-
-      // storeVersion might be: 'Varies with device', which is not a valid version.
-      storeVersion = Version.parse(storeVersions).toString();
-      print("store version: $storeVersion");
+    } catch (e) {
+      print(e.toString());
+      throw '${e.toString()}';
     }
-
-    return VersionStatus._(
-      localVersion: _getCleanVersion(packageInfo.version),
-      storeVersion: _getCleanVersion(forceAppVersion ?? storeVersion),
-      appStoreLink: uri.toString(),
-      releaseNotes: releaseNotes,
-    );
   }
 
   /// Shows the user a platform-specific alert about the app update. The user
