@@ -241,8 +241,7 @@ class NewVersion {
         releaseNotes: releaseNotes,
       );
     } catch (e) {
-      print(e.toString());
-      throw '${e.toString()}';
+      print("Error _getAndroidStoreVersion: ${e.toString()}");
     }
   }
 
