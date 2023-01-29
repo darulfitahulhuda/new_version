@@ -328,8 +328,13 @@ class NewVersion {
   /// Launches the Apple App Store or Google Play Store page for the app.
   Future<void> launchAppStore(String appStoreLink) async {
     debugPrint(appStoreLink);
-    final uri = Uri.parse(
-        "https://play.google.com/store/apps/details?id=com.app.hijra.taaruf");
+    // final uri = Uri.parse(
+    //     "https://play.google.com/store/apps/details?id=com.app.hijra.taaruf");
+
+    // final uri = Uri.https("play.google.com",)
+
+    final uri = Uri.https("play.google.com", "/store/apps/details",
+        {"id": "com.app.hijra.taaruf", "hl": "en"});
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
