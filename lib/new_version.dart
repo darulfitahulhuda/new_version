@@ -336,7 +336,7 @@ class NewVersion {
     final uri = Uri.https("play.google.com", "/store/apps/details",
         {"id": "com.app.hijra.taaruf", "hl": "en"});
     if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       throw 'Could not launch appStoreLink';
     }

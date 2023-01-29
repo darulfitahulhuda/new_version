@@ -27,7 +27,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // Instantiate NewVersion manager object (Using GCP Console app as example)
     final newVersion = NewVersion(
       iOSId: 'com.google.Vespa',
-      androidId: 'com.google.android.apps.cloudconsole',
+      androidId: 'com.app.hijra.taaruf',
     );
 
     // You can let the plugin handle fetching the status and showing a dialog,
