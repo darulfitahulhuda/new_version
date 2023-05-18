@@ -242,6 +242,7 @@ class NewVersion {
       );
     } catch (e) {
       print("Error _getAndroidStoreVersion: ${e.toString()}");
+      return null;
     }
   }
 
